@@ -38,6 +38,7 @@ export async function discoverDramasByCountry(
 ): Promise<TmdbShowSummary[]> {
   const data = await tmdbFetch<{ results: TmdbShowSummary[] }>("/discover/tv", {
     with_origin_country: originCountry,
+    with_genres: "18", // Drama — excludes variety/reality/talk shows from browse
     sort_by: "popularity.desc",
     page: String(page),
   });

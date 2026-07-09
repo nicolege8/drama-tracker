@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
@@ -72,16 +72,16 @@ export default function Feed() {
       keyExtractor={(item) => item.id}
       contentContainerStyle={{ padding: 16, gap: 12 }}
       renderItem={({ item }) => (
-        <View
+        <Pressable
           style={styles.card}
-          onTouchEnd={() => router.push(`/drama/${item.tmdb_id}`)}
+          onPress={() => router.push(`/drama/${item.tmdb_id}`)}
         >
           <Text style={styles.line}>
             <Text style={styles.username}>{item.profiles?.username ?? "Someone"}</Text>{" "}
             {STATUS_VERB[item.status] ?? "updated"} <Text style={styles.dramaTitle}>{item.title}</Text>
             {item.rating ? ` (★ ${item.rating}/10)` : ""}
           </Text>
-        </View>
+        </Pressable>
       )}
       ListEmptyComponent={
         <Text style={styles.empty}>
