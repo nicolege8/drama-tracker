@@ -10,16 +10,19 @@ import {
   View,
 } from "react-native";
 import { useLocalSearchParams, Stack } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { getDramaDetails, posterUrl } from "../../lib/tmdb";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import type { DramaStatus, TmdbShowDetails } from "../../lib/types";
 
 const STATUS_LABELS: Record<DramaStatus, string> = {
+  plan_to_watch: "Plan to Watch",
   watching: "Watching",
   completed: "Completed",
-  plan_to_watch: "Plan to Watch",
 };
+
+const STAR_COUNT = 5;
 
 export default function DramaDetail() {
   const { tmdbId } = useLocalSearchParams<{ tmdbId: string }>();
@@ -27,7 +30,9 @@ export default function DramaDetail() {
   const [drama, setDrama] = useState<TmdbShowDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<DramaStatus | null>(null);
+  const [draftStatus, setDraftStatus] = useState<DramaStatus | null>(null);
   const [rating, setRating] = useState<number | null>(null);
+  const [draftRating, setDraftRating] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -47,7 +52,9 @@ export default function DramaDetail() {
         .then(({ data }) => {
           if (data) {
             setStatus(data.status);
+            setDraftStatus(data.status);
             setRating(data.rating);
+            setDraftRating(data.rating);
           }
         });
     }
@@ -73,7 +80,9 @@ export default function DramaDetail() {
       return;
     }
     setStatus(nextStatus);
+    setDraftStatus(nextStatus);
     setRating(nextRating);
+    setDraftRating(nextRating);
   };
 
   if (loading) {
@@ -93,6 +102,9 @@ export default function DramaDetail() {
   }
 
   const uri = posterUrl(drama.poster_path);
+  const hasPendingChange =
+    draftStatus !== null &&
+    (draftStatus !== status || (draftStatus === "completed" && draftRating !== rating));
 
   return (
     <ScrollView style={styles.container}>
@@ -115,30 +127,44 @@ export default function DramaDetail() {
         {(Object.keys(STATUS_LABELS) as DramaStatus[]).map((s) => (
           <Pressable
             key={s}
-            style={[styles.statusButton, status === s && styles.statusButtonActive]}
+            style={[styles.statusButton, draftStatus === s && styles.statusButtonActive]}
             disabled={saving}
-            onPress={() => saveEntry(s, rating)}
+            onPress={() => setDraftStatus(s)}
           >
-            <Text style={[styles.statusText, status === s && styles.statusTextActive]}>
+            <Text style={[styles.statusText, draftStatus === s && styles.statusTextActive]}>
               {STATUS_LABELS[s]}
             </Text>
           </Pressable>
         ))}
       </View>
 
-      {status && (
+      {draftStatus === "completed" && (
         <>
           <Text style={styles.sectionTitle}>Your rating</Text>
           <View style={styles.ratingRow}>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-              <Pressable key={n} disabled={saving} onPress={() => saveEntry(status, n)}>
-                <Text style={[styles.ratingNumber, rating === n && styles.ratingNumberActive]}>
-                  {n}
-                </Text>
+            {Array.from({ length: STAR_COUNT }, (_, i) => i + 1).map((n) => (
+              <Pressable key={n} disabled={saving} onPress={() => setDraftRating(n)}>
+                <Ionicons
+                  name={draftRating !== null && n <= draftRating ? "star" : "star-outline"}
+                  size={32}
+                  color="#f5a623"
+                />
               </Pressable>
             ))}
           </View>
         </>
+      )}
+
+      {hasPendingChange && (
+        <Pressable
+          style={styles.confirmButton}
+          disabled={saving}
+          onPress={() =>
+            saveEntry(draftStatus!, draftStatus === "completed" ? draftRating : rating)
+          }
+        >
+          <Text style={styles.confirmButtonText}>Confirm</Text>
+        </Pressable>
       )}
 
       {drama.credits?.cast && drama.credits.cast.length > 0 && (
@@ -176,15 +202,14 @@ const styles = StyleSheet.create({
   statusButtonActive: { backgroundColor: "#111" },
   statusText: { color: "#333", fontWeight: "600" },
   statusTextActive: { color: "#fff" },
-  ratingRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  ratingNumber: {
-    fontSize: 16,
-    width: 28,
-    height: 28,
-    textAlign: "center",
-    lineHeight: 28,
-    borderRadius: 14,
-    backgroundColor: "#eee",
+  ratingRow: { flexDirection: "row", gap: 8 },
+  confirmButton: {
+    marginTop: 16,
+    alignSelf: "flex-start",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: "#111",
   },
-  ratingNumberActive: { backgroundColor: "#111", color: "#fff" },
+  confirmButtonText: { color: "#fff", fontWeight: "700" },
 });

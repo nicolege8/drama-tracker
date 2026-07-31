@@ -7,6 +7,7 @@ create table profiles (
   id uuid primary key references auth.users on delete cascade,
   username text not null unique,
   avatar_url text,
+  bio text,
   created_at timestamptz not null default now()
 );
 
@@ -17,7 +18,7 @@ create table drama_entries (
   title text not null,
   poster_path text,
   status drama_status not null default 'plan_to_watch',
-  rating smallint check (rating between 1 and 10),
+  rating smallint check (rating between 1 and 5),
   updated_at timestamptz not null default now(),
   unique (user_id, tmdb_id)
 );
@@ -88,3 +89,23 @@ create policy "users can manage own follows"
 
 create policy "users can remove own follows"
   on follows for delete using (auth.uid() = follower_id);
+
+-- Avatar uploads: public bucket, each user can only write inside their own uid-prefixed folder.
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+create policy "avatar images are publicly accessible"
+  on storage.objects for select using (bucket_id = 'avatars');
+
+create policy "users can upload their own avatar"
+  on storage.objects for insert
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "users can update their own avatar"
+  on storage.objects for update
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "users can delete their own avatar"
+  on storage.objects for delete
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);

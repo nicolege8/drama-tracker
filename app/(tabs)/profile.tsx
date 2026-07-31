@@ -1,24 +1,15 @@
 import { useEffect, useState } from "react";
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
-import type { Profile } from "../../lib/types";
+import { Avatar } from "../../components/Avatar";
 
 export default function ProfileScreen() {
   const { session, profile, signOut } = useAuth();
   const router = useRouter();
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Profile[]>([]);
 
   useEffect(() => {
     if (!session) return;
@@ -35,82 +26,67 @@ export default function ProfileScreen() {
       .then(({ count }) => setFollowingCount(count ?? 0));
   }, [session]);
 
-  useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      return;
-    }
-    const timeout = setTimeout(() => {
-      supabase
-        .from("profiles")
-        .select("*")
-        .ilike("username", `%${query}%`)
-        .neq("id", session?.user.id ?? "")
-        .limit(20)
-        .then(({ data }) => setResults(data ?? []));
-    }, 300);
-    return () => clearTimeout(timeout);
-  }, [query, session]);
+  const shareProfile = () => {
+    if (!profile) return;
+    Share.share({
+      message: `Check out ${profile.username}'s profile on Drama Tracker: dramatracker://user/${profile.id}`,
+    });
+  };
 
   return (
     <View style={styles.container}>
+      <Avatar uri={profile?.avatar_url ?? null} size={110} />
       <Text style={styles.username}>{profile?.username ?? "..."}</Text>
+      <Text style={styles.bio}>{profile?.bio || "No bio yet."}</Text>
+
       <View style={styles.statsRow}>
         <Text style={styles.stat}>{followerCount} followers</Text>
         <Text style={styles.stat}>{followingCount} following</Text>
       </View>
 
+      <View style={styles.actionsRow}>
+        <Pressable style={styles.primaryButton} onPress={() => router.push("/profile/edit")}>
+          <Text style={styles.primaryButtonText}>Edit Profile</Text>
+        </Pressable>
+        <Pressable style={styles.secondaryButton} onPress={shareProfile}>
+          <Text style={styles.secondaryButtonText}>Share Profile</Text>
+        </Pressable>
+      </View>
+
       <Pressable style={styles.signOutButton} onPress={signOut}>
         <Text style={styles.signOutText}>Sign Out</Text>
       </Pressable>
-
-      <Text style={styles.sectionTitle}>Find friends</Text>
-      <TextInput
-        style={styles.search}
-        placeholder="Search by username..."
-        value={query}
-        onChangeText={setQuery}
-        autoCapitalize="none"
-      />
-
-      <FlatList
-        data={results}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.userRow}
-            onPress={() => router.push(`/user/${item.id}`)}
-          >
-            <Text style={styles.userRowText}>{item.username}</Text>
-          </Pressable>
-        )}
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  username: { fontSize: 24, fontWeight: "700" },
-  statsRow: { flexDirection: "row", gap: 16, marginTop: 8 },
+  container: { flex: 1, alignItems: "center", padding: 24, paddingTop: 48 },
+  username: { fontSize: 22, fontWeight: "700", marginTop: 16, textAlign: "center" },
+  bio: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  statsRow: { flexDirection: "row", gap: 24, marginTop: 20 },
   stat: { color: "#666" },
-  signOutButton: {
-    marginTop: 16,
-    alignSelf: "flex-start",
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 16,
+  actionsRow: { flexDirection: "row", gap: 12, marginTop: 24 },
+  primaryButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: "#111",
+  },
+  primaryButtonText: { color: "#fff", fontWeight: "700" },
+  secondaryButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
     backgroundColor: "#eee",
   },
-  signOutText: { fontWeight: "600" },
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginTop: 28, marginBottom: 8 },
-  search: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 16,
-  },
-  userRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
-  userRowText: { fontSize: 16 },
+  secondaryButtonText: { color: "#333", fontWeight: "700" },
+  signOutButton: { marginTop: 32 },
+  signOutText: { color: "#999", fontWeight: "600" },
 });

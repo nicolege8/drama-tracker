@@ -80,7 +80,7 @@ export default function UserProfile() {
             tmdbId={item.tmdb_id}
             title={item.title}
             posterPath={item.poster_path}
-            subtitle={item.rating ? `★ ${item.rating}/10` : undefined}
+            subtitle={item.rating ? `★ ${item.rating}/5` : undefined}
           />
         )}
         ListEmptyComponent={<Text style={styles.empty}>No dramas tracked yet.</Text>}
