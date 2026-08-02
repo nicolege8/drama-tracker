@@ -9,20 +9,24 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { Avatar } from "../../components/Avatar";
 
 export default function EditProfile() {
-  const { session, profile, refreshProfile } = useAuth();
+  const { session, profile, loading: authLoading, refreshProfile } = useAuth();
   const router = useRouter();
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? null);
   const [username, setUsername] = useState(profile?.username ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  if (!authLoading && !session) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   const pickAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -87,7 +91,7 @@ export default function EditProfile() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Pressable style={styles.avatarWrap} onPress={pickAvatar} disabled={uploading}>
-        <Avatar uri={avatarUrl} size={110} />
+        <Avatar uri={avatarUrl} size={110} label={username} />
         <View style={styles.avatarOverlay}>
           {uploading ? (
             <ActivityIndicator color="#fff" />

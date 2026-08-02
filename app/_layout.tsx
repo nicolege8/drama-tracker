@@ -7,7 +7,6 @@ export default function RootLayout() {
     <AuthProvider>
       <StatusBar style="auto" />
       <Stack initialRouteName="index" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="drama/[tmdbId]" options={{ headerShown: true, title: "" }} />
         <Stack.Screen name="user/[id]" options={{ headerShown: true }} />
         <Stack.Screen name="profile/edit" options={{ headerShown: true, title: "Edit Profile" }} />
       </Stack>

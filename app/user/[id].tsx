@@ -1,29 +1,38 @@
 import { useEffect, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import type { DramaEntry, Profile } from "../../lib/types";
-import { DramaCard } from "../../components/DramaCard";
+import { Avatar } from "../../components/Avatar";
+import { CollectionCarousels } from "../../components/CollectionCarousels";
 
 export default function UserProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { session } = useAuth();
+  const { session, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [entries, setEntries] = useState<DramaEntry[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from("profiles").select("*").eq("id", id).single().then(({ data }) => {
-      setProfile(data ?? null);
-    });
+    setLoading(true);
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", id)
+      .single()
+      .then(({ data }) => setProfile(data ?? null));
 
     supabase
       .from("drama_entries")
       .select("*")
       .eq("user_id", id)
       .order("updated_at", { ascending: false })
-      .then(({ data }) => setEntries(data ?? []));
+      .then(({ data }) => {
+        setEntries(data ?? []);
+        setLoading(false);
+      });
 
     if (session) {
       supabase
@@ -45,64 +54,61 @@ export default function UserProfile() {
         .eq("follower_id", session.user.id)
         .eq("following_id", id);
     } else {
-      await supabase
-        .from("follows")
-        .insert({ follower_id: session.user.id, following_id: id });
+      await supabase.from("follows").insert({ follower_id: session.user.id, following_id: id });
     }
     setIsFollowing(!isFollowing);
   };
 
+  if (!authLoading && !session) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <Stack.Screen options={{ title: profile?.username ?? "Profile" }} />
-      <Text style={styles.username}>{profile?.username ?? "..."}</Text>
 
-      {session?.user.id !== id && (
-        <Pressable
-          style={[styles.followButton, isFollowing && styles.followingButton]}
-          onPress={toggleFollow}
-        >
-          <Text style={[styles.followText, isFollowing && styles.followingText]}>
-            {isFollowing ? "Following" : "Follow"}
-          </Text>
-        </Pressable>
-      )}
+      <View style={styles.header}>
+        <Avatar uri={profile?.avatar_url ?? null} size={90} label={profile?.username} />
+        <Text style={styles.username}>{profile?.username ?? "..."}</Text>
+        <Text style={styles.bio}>{profile?.bio || "No bio yet."}</Text>
 
-      <Text style={styles.sectionTitle}>Collection</Text>
-      <FlatList
-        data={entries}
-        keyExtractor={(item) => item.id}
-        numColumns={3}
-        columnWrapperStyle={{ gap: 12 }}
-        contentContainerStyle={{ gap: 16 }}
-        renderItem={({ item }) => (
-          <DramaCard
-            tmdbId={item.tmdb_id}
-            title={item.title}
-            posterPath={item.poster_path}
-            subtitle={item.rating ? `★ ${item.rating}/5` : undefined}
-          />
+        {session?.user.id !== id && (
+          <Pressable
+            style={[styles.followButton, isFollowing && styles.followingButton]}
+            onPress={toggleFollow}
+          >
+            <Text style={[styles.followText, isFollowing && styles.followingText]}>
+              {isFollowing ? "Following" : "Follow"}
+            </Text>
+          </Pressable>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No dramas tracked yet.</Text>}
-      />
-    </View>
+      </View>
+
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator />
+        </View>
+      ) : (
+        <CollectionCarousels entries={entries} emptyMessage="No dramas tracked yet." />
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  username: { fontSize: 24, fontWeight: "700" },
+  container: { flex: 1 },
+  centered: { paddingVertical: 40, alignItems: "center" },
+  header: { alignItems: "center", padding: 24, paddingTop: 32 },
+  username: { fontSize: 20, fontWeight: "700", marginTop: 12, textAlign: "center" },
+  bio: { marginTop: 6, fontSize: 14, color: "#666", textAlign: "center", lineHeight: 20 },
   followButton: {
-    marginTop: 12,
-    alignSelf: "flex-start",
+    marginTop: 16,
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     borderRadius: 16,
     backgroundColor: "#111",
   },
   followingButton: { backgroundColor: "#eee" },
   followText: { color: "#fff", fontWeight: "600" },
   followingText: { color: "#111" },
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginTop: 24, marginBottom: 8 },
-  empty: { color: "#888" },
 });

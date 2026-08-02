@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../lib/auth";
+import { colors } from "../../lib/theme";
 
 export default function TabsLayout() {
   const { session, loading } = useAuth();
@@ -10,7 +11,22 @@ export default function TabsLayout() {
   }
 
   return (
-    <Tabs screenOptions={{ headerShown: true }}>
+    <Tabs
+      screenOptions={{
+        headerShown: true,
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.ink,
+        headerShadowVisible: false,
+        tabBarActiveTintColor: colors.coffee,
+        tabBarInactiveTintColor: colors.tabInactive,
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: colors.hairline,
+        },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: "600" },
+      }}
+    >
       <Tabs.Screen
         name="browse"
         options={{

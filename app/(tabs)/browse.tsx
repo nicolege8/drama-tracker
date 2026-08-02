@@ -8,9 +8,11 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { discoverDramasByCountry, searchDramas } from "../../lib/tmdb";
 import type { TmdbShowSummary } from "../../lib/types";
 import { DramaCard } from "../../components/DramaCard";
+import { colors, radius, space } from "../../lib/theme";
 
 type Country = "KR" | "CN";
 
@@ -48,12 +50,19 @@ export default function Browse() {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.search}
-        placeholder="Search dramas..."
-        value={query}
-        onChangeText={setQuery}
-      />
+      <Text style={styles.title}>Discover</Text>
+      <Text style={styles.subtitle}>Fresh brews from Seoul & Hengdian</Text>
+
+      <View style={styles.searchField}>
+        <Ionicons name="search" size={18} color={colors.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search dramas..."
+          placeholderTextColor={colors.sub}
+          value={query}
+          onChangeText={setQuery}
+        />
+      </View>
 
       {!query.trim() && (
         <View style={styles.toggleRow}>
@@ -71,14 +80,14 @@ export default function Browse() {
         </View>
       )}
 
-      {loading && <ActivityIndicator style={{ marginTop: 20 }} />}
+      {loading && <ActivityIndicator style={{ marginTop: 20 }} color={colors.coffee} />}
       {error && <Text style={styles.error}>{error}</Text>}
 
       <FlatList
         data={results}
         keyExtractor={(item) => String(item.id)}
         numColumns={3}
-        columnWrapperStyle={{ gap: 12 }}
+        columnWrapperStyle={{ gap: space.cardGap }}
         contentContainerStyle={{ gap: 16, paddingVertical: 16 }}
         renderItem={({ item }) => (
           <DramaCard
@@ -97,24 +106,34 @@ export default function Browse() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  search: {
+  container: { flex: 1, paddingHorizontal: space.screenX, paddingTop: 16, backgroundColor: colors.surface },
+  title: { fontSize: 30, fontWeight: "700", color: colors.ink, letterSpacing: -0.6 },
+  subtitle: { fontSize: 14, color: colors.sub, marginTop: 4 },
+  searchField: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.field,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 16,
+    borderColor: colors.hairline,
+    borderRadius: radius.field,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 16,
   },
+  searchInput: { flex: 1, fontSize: 16, color: colors.ink },
   toggleRow: { flexDirection: "row", gap: 8, marginTop: 12 },
   toggle: {
     paddingVertical: 6,
     paddingHorizontal: 14,
-    borderRadius: 16,
-    backgroundColor: "#eee",
+    borderRadius: radius.pill,
+    backgroundColor: colors.field,
+    borderWidth: 1,
+    borderColor: colors.hairline,
   },
-  toggleActive: { backgroundColor: "#111" },
-  toggleText: { color: "#333", fontWeight: "600" },
-  toggleTextActive: { color: "#fff" },
+  toggleActive: { backgroundColor: colors.coffee, borderColor: colors.coffee },
+  toggleText: { color: colors.sub, fontWeight: "600" },
+  toggleTextActive: { color: colors.onCoffee },
   error: { color: "crimson", marginTop: 12 },
-  empty: { textAlign: "center", marginTop: 40, color: "#888" },
+  empty: { textAlign: "center", marginTop: 40, color: colors.sub },
 });

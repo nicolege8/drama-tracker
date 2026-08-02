@@ -1,17 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { Avatar } from "../../components/Avatar";
 import { relativeTime } from "../../lib/format";
+import { posterUrl } from "../../lib/tmdb";
+import { colors, radius, space } from "../../lib/theme";
 import type { Profile } from "../../lib/types";
 
 interface FeedItem {
   id: string;
   tmdb_id: number;
   title: string;
+  poster_path: string | null;
   rating: number | null;
   updated_at: string;
   user_id: string;
@@ -44,7 +56,9 @@ export default function Feed() {
 
         const { data } = await supabase
           .from("drama_entries")
-          .select("id, tmdb_id, title, rating, updated_at, user_id, profiles(username, avatar_url)")
+          .select(
+            "id, tmdb_id, title, poster_path, rating, updated_at, user_id, profiles(username, avatar_url)"
+          )
           .eq("status", "completed")
           .in("user_id", followingIds)
           .order("updated_at", { ascending: false })
@@ -76,13 +90,19 @@ export default function Feed() {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.search}
-        placeholder="Find friends by username..."
-        value={query}
-        onChangeText={setQuery}
-        autoCapitalize="none"
-      />
+      <Text style={styles.title}>Feed</Text>
+
+      <View style={styles.searchField}>
+        <Ionicons name="search" size={18} color={colors.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Find friends by username..."
+          placeholderTextColor={colors.sub}
+          value={query}
+          onChangeText={setQuery}
+          autoCapitalize="none"
+        />
+      </View>
 
       {query.trim() ? (
         <FlatList
@@ -97,7 +117,7 @@ export default function Feed() {
                 router.push(`/user/${item.id}`);
               }}
             >
-              <Avatar uri={item.avatar_url} size={36} />
+              <Avatar uri={item.avatar_url} size={36} label={item.username} />
               <Text style={styles.userRowText}>{item.username}</Text>
             </Pressable>
           )}
@@ -105,44 +125,62 @@ export default function Feed() {
         />
       ) : loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator />
+          <ActivityIndicator color={colors.coffee} />
         </View>
       ) : (
         <FlatList
           data={items}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, gap: 12 }}
-          renderItem={({ item }) => (
-            <Pressable
-              style={styles.card}
-              onPress={() => router.push(`/drama/${item.tmdb_id}`)}
-            >
-              <Avatar uri={item.profiles?.avatar_url ?? null} size={40} />
-              <View style={styles.cardBody}>
-                <Text style={styles.line}>
-                  <Text style={styles.username}>{item.profiles?.username ?? "Someone"}</Text>
-                  {" completed "}
-                  <Text style={styles.dramaTitle}>{item.title}</Text>
-                </Text>
-                {item.rating ? (
-                  <View style={styles.starsRow}>
-                    {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
-                      <Ionicons
-                        key={n}
-                        name={n <= item.rating! ? "star" : "star-outline"}
-                        size={14}
-                        color="#f5a623"
-                      />
-                    ))}
-                  </View>
-                ) : null}
-                <Text style={styles.timestamp}>{relativeTime(item.updated_at)}</Text>
+          contentContainerStyle={{ padding: space.screenX, gap: space.cardGap }}
+          renderItem={({ item }) => {
+            const posterUri = posterUrl(item.poster_path);
+            return (
+              <View style={styles.card}>
+                <Pressable onPress={() => router.push(`/user/${item.user_id}`)}>
+                  <Avatar
+                    uri={item.profiles?.avatar_url ?? null}
+                    size={42}
+                    label={item.profiles?.username}
+                  />
+                </Pressable>
+
+                <Pressable style={styles.cardBody} onPress={() => router.push(`/drama/${item.tmdb_id}`)}>
+                  <Text style={styles.line}>
+                    <Text style={styles.username} onPress={() => router.push(`/user/${item.user_id}`)}>
+                      {item.profiles?.username ?? "Someone"}
+                    </Text>
+                    <Text style={styles.verb}> completed </Text>
+                    <Text style={styles.dramaTitle}>{item.title}</Text>
+                  </Text>
+                  {item.rating ? (
+                    <View style={styles.starsRow}>
+                      {Array.from({ length: 5 }, (_, i) => i + 1).map((n) => (
+                        <Ionicons
+                          key={n}
+                          name={n <= item.rating! ? "star" : "star-outline"}
+                          size={12}
+                          color={n <= item.rating! ? colors.amber : colors.amberEmpty}
+                        />
+                      ))}
+                    </View>
+                  ) : null}
+                  <Text style={styles.timestamp}>{relativeTime(item.updated_at)}</Text>
+                </Pressable>
+
+                <Pressable onPress={() => router.push(`/drama/${item.tmdb_id}`)}>
+                  {posterUri ? (
+                    <Image source={{ uri: posterUri }} style={styles.poster} />
+                  ) : (
+                    <View style={[styles.poster, styles.posterPlaceholder]} />
+                  )}
+                </Pressable>
               </View>
-            </Pressable>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <Text style={styles.empty}>
-              Follow friends from their profile to see their completed dramas here.
+              No activity yet. Search for users above and follow people to see their completed
+              dramas here.
             </Text>
           }
         />
@@ -152,39 +190,57 @@ export default function Feed() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: colors.surface },
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
-  search: {
-    margin: 16,
-    marginBottom: 0,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 16,
+  title: {
+    fontSize: 30,
+    fontWeight: "700",
+    color: colors.ink,
+    letterSpacing: -0.6,
+    paddingHorizontal: space.screenX,
+    paddingTop: 16,
   },
+  searchField: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.field,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.field,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginHorizontal: space.screenX,
+    marginTop: 16,
+  },
+  searchInput: { flex: 1, fontSize: 16, color: colors.ink },
   userRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: space.screenX,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: colors.hairline,
   },
-  userRowText: { fontSize: 16 },
+  userRowText: { fontSize: 16, color: colors.ink },
   card: {
     flexDirection: "row",
     gap: 12,
-    backgroundColor: "#f6f6f6",
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderRadius: radius.card,
+    padding: 13,
   },
   cardBody: { flex: 1, gap: 4 },
-  line: { fontSize: 15, lineHeight: 20 },
-  username: { fontWeight: "700" },
-  dramaTitle: { fontWeight: "600" },
+  line: { fontSize: 13.5, lineHeight: 19 },
+  username: { fontWeight: "700", color: colors.ink },
+  verb: { color: colors.verb },
+  dramaTitle: { fontWeight: "600", color: colors.ink },
   starsRow: { flexDirection: "row", gap: 2 },
-  timestamp: { fontSize: 12, color: "#999" },
-  empty: { textAlign: "center", marginTop: 60, color: "#888", paddingHorizontal: 24 },
+  timestamp: { fontSize: 11, color: colors.sub },
+  poster: { width: 38, height: 57, borderRadius: radius.tile, backgroundColor: colors.field },
+  posterPlaceholder: {},
+  empty: { textAlign: "center", marginTop: 60, color: colors.sub, paddingHorizontal: 24 },
 });
